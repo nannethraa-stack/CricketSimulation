@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from models import BowlRequest, DeliveryResult, TrajectoryPoint
-import numpy as np
 import uuid
 import random
 from typing import List
@@ -94,6 +93,14 @@ def stage_c_high_level_ml(length_m, line_m, shot_type, valid):
         "timing": timing,
         "footwork": footwork,
         "fusion_confidence": 0.94 if valid else 0.25
+    }
+
+@app.get("/")
+def root():
+    return {
+        "message": "Multi-Modal Edge-AI Cricket Backend is running",
+        "docs": "/docs",
+        "health": "/api/health"
     }
 
 @app.post("/api/bowl", response_model=DeliveryResult)
