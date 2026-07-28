@@ -1,5 +1,5 @@
 # multi_modal_cricket_sim.py
-# Multi-Modal Edge-AI Cricket Simulator + Animated Ball Flight (Option A)
+# Multi-Modal Edge-AI Cricket Simulator + Graphical Animated Ball Flight
 # Deploy-ready for Render / Streamlit
 
 import streamlit as st
@@ -25,7 +25,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# SENSOR & PHYSICS (same as before)
+# SENSOR & PHYSICS
 # =============================================================================
 
 @dataclass
@@ -157,12 +157,14 @@ def stage_a_time_sync(d: Dict) -> Dict:
         d["sync_window_us"] = (master - 25000, master + 25000)
     return d
 
+
 def stage_b_cross_validation(d: Dict) -> Dict:
     valid = (any(p.amplitude > 0.28 for p in d["piezo"]) and
              len(d["radar"].x) > 8 and len(d["nir"]) >= 1)
     d["valid_event"] = valid
     d["false_positive_rejected"] = not valid
     return d
+
 
 def stage_c_high_level_ml(d: Dict) -> Dict:
     traj = d["traj"]
@@ -197,76 +199,142 @@ def stage_c_high_level_ml(d: Dict) -> Dict:
     }
     return d
 
+
 def run_fusion_pipeline(d: Dict) -> Dict:
     return stage_c_high_level_ml(stage_b_cross_validation(stage_a_time_sync(d)))
 
 
 # =============================================================================
-# ANIMATED REPLAYS (Option A)
+# GRAPHICAL ANIMATED REPLAYS (Bowler + Batsman)
 # =============================================================================
 
 def create_side_on_animation(traj: Dict, speed_multiplier: float = 1.0):
-    """Side-on view: ball travels left→right, bounce clearly visible."""
+    """Side-on view with simple bowler and batsman figures."""
     t = traj["t"]
     x = traj["x"]
     z = traj["z"]
     n_frames = len(t)
 
-    # Subsample for smoother animation if needed
-    step = max(1, n_frames // 60)
+    step = max(1, n_frames // 70)
     frames_idx = list(range(0, n_frames, step))
     if frames_idx[-1] != n_frames - 1:
         frames_idx.append(n_frames - 1)
 
     fig = go.Figure()
 
-    # Pitch surface line
+    # Pitch surface
     fig.add_trace(go.Scatter(
         x=[0, 20.5], y=[0, 0],
-        mode="lines", line=dict(color="forestgreen", width=8),
+        mode="lines", line=dict(color="#2e7d32", width=14),
         name="Pitch", showlegend=False
     ))
 
-    # Stumps (simple)
+    # Popping crease
     fig.add_trace(go.Scatter(
-        x=[20.12, 20.12], y=[0, 0.71],
-        mode="lines", line=dict(color="yellow", width=6),
-        name="Stumps", showlegend=False
+        x=[17.68, 17.68], y=[-0.05, 0.15],
+        mode="lines", line=dict(color="white", width=2, dash="dot"),
+        showlegend=False
     ))
 
-    # Initial empty ball + trail
+    # Stumps
+    fig.add_trace(go.Scatter(
+        x=[20.12, 20.12], y=[0, 0.71],
+        mode="lines", line=dict(color="#ffeb3b", width=7),
+        name="Stumps", showlegend=False
+    ))
+    # Bails
+    fig.add_trace(go.Scatter(
+        x=[20.05, 20.19], y=[0.71, 0.71],
+        mode="lines", line=dict(color="#ffeb3b", width=4),
+        showlegend=False
+    ))
+
+    # ----- Batsman (blue stick figure) -----
+    fig.add_trace(go.Scatter(
+        x=[18.6, 18.6], y=[0.95, 1.55],
+        mode="lines", line=dict(color="#1565c0", width=6),
+        showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=[18.6], y=[1.68],
+        mode="markers", marker=dict(size=16, color="#1565c0"),
+        showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=[18.45, 18.6, 18.75], y=[0.05, 0.95, 0.05],
+        mode="lines", line=dict(color="#1565c0", width=5),
+        showlegend=False
+    ))
+    # Bat
+    fig.add_trace(go.Scatter(
+        x=[18.75, 19.15], y=[1.15, 0.55],
+        mode="lines", line=dict(color="#5d4037", width=6),
+        showlegend=False
+    ))
+
+    # ----- Bowler (red stick figure) -----
+    fig.add_trace(go.Scatter(
+        x=[1.2, 1.2], y=[0.95, 1.55],
+        mode="lines", line=dict(color="#c62828", width=6),
+        showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=[1.2], y=[1.68],
+        mode="markers", marker=dict(size=16, color="#c62828"),
+        showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=[1.05, 1.2, 1.35], y=[0.05, 0.95, 0.05],
+        mode="lines", line=dict(color="#c62828", width=5),
+        showlegend=False
+    ))
+    # Bowling arm
+    fig.add_trace(go.Scatter(
+        x=[1.2, 1.6], y=[1.45, 1.85],
+        mode="lines", line=dict(color="#c62828", width=5),
+        showlegend=False
+    ))
+
+    # ----- Ball + Trail + Shadow (animated) -----
     fig.add_trace(go.Scatter(
         x=[x[0]], y=[z[0]],
         mode="markers",
-        marker=dict(size=14, color="red", line=dict(width=2, color="white")),
+        marker=dict(size=13, color="#ff1744", line=dict(width=2, color="white")),
         name="Ball"
     ))
     fig.add_trace(go.Scatter(
         x=[], y=[],
         mode="lines",
-        line=dict(width=3, color="orange"),
+        line=dict(width=3, color="#ff9100"),
         name="Trail", showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=[x[0]], y=[0.02],
+        mode="markers",
+        marker=dict(size=9, color="rgba(0,0,0,0.35)"),
+        showlegend=False
     ))
 
     frames = []
     for i in frames_idx:
         frames.append(go.Frame(
             data=[
-                go.Scatter(x=[x[i]], y=[z[i]]),                    # ball
-                go.Scatter(x=x[:i+1], y=z[:i+1])                   # trail
+                go.Scatter(x=[x[i]], y=[z[i]]),          # ball
+                go.Scatter(x=x[:i+1], y=z[:i+1]),        # trail
+                go.Scatter(x=[x[i]], y=[0.02])           # shadow
             ],
             name=str(i),
-            traces=[2, 3]
+            traces=[11, 12, 13]
         ))
-
     fig.frames = frames
 
-    # Play button + slider
     fig.update_layout(
-        title="Side-On Ball Flight (Release → Bounce → Bat)",
-        xaxis=dict(range=[-0.5, 21.5], title="Length (m)"),
-        yaxis=dict(range=[-0.1, 2.4], title="Height (m)", scaleanchor="x", scaleratio=1),
-        height=420,
+        title="Side-On View · Real Practice Style (Bowler → Ball → Batsman)",
+        xaxis=dict(range=[-0.8, 21.5], title="Length (m)", showgrid=False),
+        yaxis=dict(range=[-0.15, 2.5], title="Height (m)", scaleanchor="x", scaleratio=1, showgrid=False),
+        height=480,
+        plot_bgcolor="#e8f5e9",
+        paper_bgcolor="#fafafa",
         updatemenus=[{
             "type": "buttons",
             "buttons": [
@@ -274,7 +342,7 @@ def create_side_on_animation(traj: Dict, speed_multiplier: float = 1.0):
                     "label": "▶ Play",
                     "method": "animate",
                     "args": [None, {
-                        "frame": {"duration": int(35 / speed_multiplier), "redraw": True},
+                        "frame": {"duration": int(32 / speed_multiplier), "redraw": True},
                         "fromcurrent": True,
                         "transition": {"duration": 0}
                     }]
@@ -286,45 +354,71 @@ def create_side_on_animation(traj: Dict, speed_multiplier: float = 1.0):
                 }
             ],
             "direction": "left",
-            "x": 0.0, "y": 1.15
+            "x": 0.01, "y": 1.12
         }],
         sliders=[{
             "steps": [
                 {"args": [[f.name], {"frame": {"duration": 0}, "mode": "immediate"}],
-                 "label": f"{traj['t'][int(f.name)]*1000:.0f} ms",
+                 "label": f"{traj['t'][int(f.name)]*1000:.0f}ms",
                  "method": "animate"}
                 for f in frames
             ],
-            "x": 0.1, "len": 0.8, "y": -0.08
-        }]
+            "x": 0.1, "len": 0.8, "y": -0.07
+        }],
+        margin=dict(t=60, b=60)
     )
     return fig
 
 
 def create_topdown_animation(traj: Dict, speed_multiplier: float = 1.0):
-    """Top-down pitch map with moving ball + trail."""
+    """Top-down pitch map with clearer markings."""
     t = traj["t"]
     x = traj["x"]
     y = traj["y"]
     n_frames = len(t)
-    step = max(1, n_frames // 55)
+
+    step = max(1, n_frames // 60)
     frames_idx = list(range(0, n_frames, step))
     if frames_idx[-1] != n_frames - 1:
         frames_idx.append(n_frames - 1)
 
     fig = go.Figure()
 
-    # Pitch rectangle
-    fig.add_shape(type="rect", x0=0, y0=-1.4, x1=20.12, y1=1.4,
-                  line=dict(color="white", width=2), fillcolor="rgba(34,139,34,0.35)")
-    # Crease lines
-    fig.add_shape(type="line", x0=17.68, y0=-1.4, x1=17.68, y1=1.4, line=dict(color="white", width=1, dash="dot"))
-    # Stumps
-    fig.add_shape(type="line", x0=20.12, y0=-0.11, x1=20.12, y1=0.11, line=dict(color="yellow", width=5))
+    # Pitch
+    fig.add_shape(type="rect", x0=0, y0=-1.5, x1=20.12, y1=1.5,
+                  line=dict(color="white", width=2), fillcolor="rgba(46,125,50,0.45)")
 
-    fig.add_trace(go.Scatter(x=[x[0]], y=[y[0]], mode="markers",
-                             marker=dict(size=13, color="red", line=dict(width=2, color="white")), name="Ball"))
-    fig.add_trace(go.Scatter(x=[], y=[], mode="lines", line=dict(width=3, color="orange"), showlegend=False))
+    # Creases
+    fig.add_shape(type="line", x0=1.22, y0=-1.5, x1=1.22, y1=1.5,
+                  line=dict(color="white", width=1, dash="dot"))
+    fig.add_shape(type="line", x0=17.68, y0=-1.5, x1=17.68, y1=1.5,
+                  line=dict(color="white", width=1, dash="dot"))
+
+    # Stumps
+    fig.add_shape(type="line", x0=20.12, y0=-0.12, x1=20.12, y1=0.12,
+                  line=dict(color="#ffeb3b", width=6))
+
+    # Batsman position
+    fig.add_trace(go.Scatter(
+        x=[18.5], y=[0],
+        mode="markers",
+        marker=dict(size=18, color="#1565c0", symbol="circle"),
+        name="Batsman"
+    ))
+
+    # Ball + trail
+    fig.add_trace(go.Scatter(
+        x=[x[0]], y=[y[0]],
+        mode="markers",
+        marker=dict(size=12, color="#ff1744", line=dict(width=2, color="white")),
+        name="Ball"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[], y=[],
+        mode="lines",
+        line=dict(width=3, color="#ff9100"),
+        showlegend=False
+    ))
 
     frames = []
     for i in frames_idx:
@@ -334,27 +428,28 @@ def create_topdown_animation(traj: Dict, speed_multiplier: float = 1.0):
                 go.Scatter(x=x[:i+1], y=y[:i+1])
             ],
             name=str(i),
-            traces=[0, 1]
+            traces=[1, 2]
         ))
     fig.frames = frames
 
     fig.update_layout(
-        title="Top-Down Pitch Map – Live Ball Path",
-        xaxis=dict(range=[-0.8, 21], title="Length (m)"),
-        yaxis=dict(range=[-1.6, 1.6], title="Line (m)  (− = off side)", scaleanchor="x", scaleratio=1),
+        title="Top-Down Pitch Map · Ball Path",
+        xaxis=dict(range=[-1, 21.5], title="Length (m)", showgrid=False),
+        yaxis=dict(range=[-1.7, 1.7], title="Line (m)", scaleanchor="x", scaleratio=1, showgrid=False),
         height=420,
-        plot_bgcolor="rgba(20,70,20,0.25)",
+        plot_bgcolor="rgba(20,70,20,0.3)",
         updatemenus=[{
             "type": "buttons",
             "buttons": [
                 {"label": "▶ Play", "method": "animate",
-                 "args": [None, {"frame": {"duration": int(35 / speed_multiplier), "redraw": True},
+                 "args": [None, {"frame": {"duration": int(32 / speed_multiplier), "redraw": True},
                                  "fromcurrent": True, "transition": {"duration": 0}}]},
                 {"label": "⏸ Pause", "method": "animate",
                  "args": [[None], {"frame": {"duration": 0}, "mode": "immediate"}]}
             ],
-            "x": 0.0, "y": 1.15
-        }]
+            "x": 0.01, "y": 1.12
+        }],
+        margin=dict(t=50, b=40)
     )
     return fig
 
@@ -364,7 +459,7 @@ def create_topdown_animation(traj: Dict, speed_multiplier: float = 1.0):
 # =============================================================================
 
 st.title("🏏 Multi-Modal Edge-AI Cricket Simulator")
-st.caption("Technical Spec v4.0 · Animated Ball Flight · Edge-AI Fusion · Zero Cloud")
+st.caption("Technical Spec v4.0 · Graphical Animated Ball Flight · Edge-AI Fusion · Zero Cloud")
 
 with st.sidebar:
     st.header("Session Controls")
@@ -428,9 +523,11 @@ if events:
         st.subheader("Realistic Ball Flight Replay")
         col_sel, col_spd = st.columns([2, 1])
         with col_sel:
-            ball_idx = st.selectbox("Select delivery to replay",
-                                    options=list(range(len(events))),
-                                    format_func=lambda i: f"Ball {i+1} — {events[i]['traj']['release_speed_kmh']:.0f} km/h — {events[i]['analytics']['delivery']['length_category']}")
+            ball_idx = st.selectbox(
+                "Select delivery to replay",
+                options=list(range(len(events))),
+                format_func=lambda i: f"Ball {i+1} — {events[i]['traj']['release_speed_kmh']:.0f} km/h — {events[i]['analytics']['delivery']['length_category']}"
+            )
         with col_spd:
             speed_mult = st.select_slider("Playback speed", options=[0.5, 1.0, 1.5, 2.0, 3.0, 4.0], value=1.0)
 
@@ -441,7 +538,7 @@ if events:
         with a2:
             st.plotly_chart(create_topdown_animation(traj, speed_mult), use_container_width=True)
 
-        st.caption("Red ball = current position · Orange trail = path taken · Yellow = stumps · Use ▶ Play / slider to control")
+        st.caption("Red figure = Bowler · Blue figure = Batsman · Red ball + orange trail · Use ▶ Play")
 
     with tab_bowl:
         rows = []
@@ -502,4 +599,4 @@ else:
     st.info("Set the session parameters in the sidebar and click **Run Full Fusion Pipeline** to generate deliveries.")
 
 st.markdown("---")
-st.caption("Multi-Modal Edge-AI Sensor Fusion Simulator · Spec v4.0 · Animated Option A")
+st.caption("Multi-Modal Edge-AI Sensor Fusion Simulator · Spec v4.0 · Graphical Option")
