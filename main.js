@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ===================== BASIC SETUP =====================
+// CHANGE THIS after deploying the backend
+const API = "http://localhost:8000";
+
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -9,27 +11,24 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a160a);
-scene.fog = new THREE.Fog(0x0a160a, 35, 90);
+scene.background = new THREE.Color(0x071207);
+scene.fog = new THREE.Fog(0x071207, 40, 100);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 120);
-camera.position.set(14, 9, 19);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 150);
+camera.position.set(15, 10, 20);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(10, 0.6, 0);
+controls.target.set(10, 0.5, 0);
 controls.enableDamping = true;
 
-// Lights
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.15);
-dirLight.position.set(18, 28, 12);
-dirLight.castShadow = true;
-scene.add(dirLight);
+const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+dir.position.set(20, 30, 15);
+dir.castShadow = true;
+scene.add(dir);
 
-// ===================== PITCH =====================
 function createPitch() {
   const g = new THREE.Group();
-
   const pitch = new THREE.Mesh(
     new THREE.BoxGeometry(20.12, 0.08, 3.2),
     new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.85 })
@@ -38,59 +37,49 @@ function createPitch() {
   pitch.receiveShadow = true;
   g.add(pitch);
 
-  // Creases
   const creaseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  [[1.22], [17.68]].forEach(x => {
+  [1.22, 17.68].forEach(x => {
     const c = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 3.2), creaseMat);
-    c.position.set(x[0], 0.09, 0);
+    c.position.set(x, 0.09, 0);
     g.add(c);
   });
 
-  // Stumps
   const stumpMat = new THREE.MeshStandardMaterial({ color: 0xffeb3b });
   for (let i = -1; i <= 1; i++) {
     const s = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.71, 8), stumpMat);
     s.position.set(20.12, 0.355, i * 0.105);
-    s.castShadow = true;
     g.add(s);
   }
 
-  // Length zones
   const zones = [
     [0, 4.5, 0xffeb3b],
     [4.5, 7.5, 0x66bb6a],
     [7.5, 10.5, 0xffa726],
     [10.5, 20.12, 0xef5350]
   ];
-  zones.forEach(([start, end, col]) => {
-    const w = end - start;
+  zones.forEach(([a, b, col]) => {
+    const w = b - a;
     const z = new THREE.Mesh(
       new THREE.BoxGeometry(w, 0.008, 3.2),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16 })
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.15 })
     );
-    z.position.set(start + w / 2, 0.085, 0);
+    z.position.set(a + w / 2, 0.085, 0);
     g.add(z);
   });
 
   scene.add(g);
 }
-
 createPitch();
 
-// ===================== LOW-POLY PLAYERS =====================
-function createLowPolyPerson(color, isBowler = false) {
+function createPerson(color, isBowler = false) {
   const g = new THREE.Group();
-
-  // Body
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(0.18, 0.22, 0.7, 8),
     new THREE.MeshStandardMaterial({ color })
   );
   body.position.y = 1.05;
-  body.castShadow = true;
   g.add(body);
 
-  // Head
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 10, 10),
     new THREE.MeshStandardMaterial({ color })
@@ -98,18 +87,14 @@ function createLowPolyPerson(color, isBowler = false) {
   head.position.y = 1.58;
   g.add(head);
 
-  // Legs
   const legGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6);
-  const legMat = new THREE.MeshStandardMaterial({ color });
-  const leftLeg = new THREE.Mesh(legGeo, legMat);
-  leftLeg.position.set(-0.11, 0.35, 0);
-  g.add(leftLeg);
-  const rightLeg = new THREE.Mesh(legGeo, legMat);
-  rightLeg.position.set(0.11, 0.35, 0);
-  g.add(rightLeg);
+  [-0.11, 0.11].forEach(x => {
+    const leg = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color }));
+    leg.position.set(x, 0.35, 0);
+    g.add(leg);
+  });
 
   if (isBowler) {
-    // Bowling arm raised
     const arm = new THREE.Mesh(
       new THREE.CylinderGeometry(0.05, 0.05, 0.55, 6),
       new THREE.MeshStandardMaterial({ color })
@@ -118,7 +103,6 @@ function createLowPolyPerson(color, isBowler = false) {
     arm.rotation.z = -Math.PI / 2.8;
     g.add(arm);
   } else {
-    // Bat
     const bat = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, 0.85, 0.04),
       new THREE.MeshStandardMaterial({ color: 0x5d4037 })
@@ -127,31 +111,24 @@ function createLowPolyPerson(color, isBowler = false) {
     bat.rotation.z = -0.4;
     g.add(bat);
   }
-
   return g;
 }
 
-const bowler = createLowPolyPerson(0xc62828, true);
+const bowler = createPerson(0xc62828, true);
 bowler.position.set(1.3, 0, 0.15);
 scene.add(bowler);
 
-const batsman = createLowPolyPerson(0x1565c0, false);
+const batsman = createPerson(0x1565c0, false);
 batsman.position.set(18.5, 0, 0);
 scene.add(batsman);
 
-// ===================== BALL + TRAIL =====================
 const ball = new THREE.Mesh(
   new THREE.SphereGeometry(0.036, 14, 14),
-  new THREE.MeshStandardMaterial({ color: 0xff1744, roughness: 0.35 })
+  new THREE.MeshStandardMaterial({ color: 0xff1744, roughness: 0.3 })
 );
-ball.castShadow = true;
 ball.visible = false;
 scene.add(ball);
 
-const trailMat = new THREE.LineBasicMaterial({ color: 0xff9100 });
-let currentTrail = null;
-
-// Markers
 const releaseMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.055, 10, 10),
   new THREE.MeshBasicMaterial({ color: 0x2979ff })
@@ -166,216 +143,86 @@ const bounceMarker = new THREE.Mesh(
 bounceMarker.visible = false;
 scene.add(bounceMarker);
 
-// ===================== DATA STORAGE =====================
-let deliveries = [];          // for beehive
-let wagonPoints = [];        // for wagon wheel
-let currentTraj = null;
-let animProgress = 0;
+let currentTrail = null;
 let isAnimating = false;
-let viewMode = 'beehive';     // or 'wagon'
+let animProgress = 0;
+let currentPoints = [];
+let deliveryCount = 0;
 
-// ===================== TRAJECTORY WITH SWING + SEAM =====================
-function generateTrajectory(speedKmh, lengthM, lineM, swingCm, seamCm) {
-  const v0 = speedKmh / 3.6;
-  const swing = swingCm / 100;
-  const seam = seamCm / 100;
-  const releaseHeight = 2.15;
-  const tBounce = Math.max(0.37, Math.min(0.95, lengthM / Math.max(v0, 1) * 1.06));
-
-  const points = [];
-  const steps = 80;
-
-  // Pre bounce (with swing)
-  for (let i = 0; i <= steps; i++) {
-    const t = (i / steps) * tBounce;
-    const x = v0 * t * 0.975;
-    const progress = t / tBounce;
-    const y = lineM + swing * Math.pow(progress, 1.45);
-    const z = releaseHeight - 0.5 * 9.81 * t * t * 0.91;
-    points.push(new THREE.Vector3(x, Math.max(z, 0.04), y));
-  }
-
-  const bouncePos = points[points.length - 1];
-
-  // Post bounce (with seam)
-  const vPost = v0 * 0.64;
-  for (let i = 1; i <= 45; i++) {
-    const t = (i / 45) * 0.58;
-    const x = bouncePos.x + vPost * t;
-    const y = bouncePos.z + seam * (t / 0.58);
-    const z = 0.11 + vPost * 0.21 * t - 0.5 * 9.81 * t * t * 0.76;
-    points.push(new THREE.Vector3(x, Math.max(z, 0.04), y));
-  }
-
-  return {
-    points,
-    bounceIndex: steps,
-    bounceX: bouncePos.x,
-    bounceY: bouncePos.z,
-    speedKmh,
-    lengthM,
-    lineM,
-    swingCm,
-    seamCm
+async function bowl() {
+  const body = {
+    speed_kmh: +document.getElementById('speed').value,
+    length_m: +document.getElementById('length').value,
+    line_m: +document.getElementById('line').value,
+    swing_cm: +document.getElementById('swing').value,
+    seam_cm: +document.getElementById('seam').value,
+    shot_type: document.getElementById('shot').value
   };
-}
 
-// ===================== BEEHIVE + WAGON WHEEL =====================
-const beehiveGroup = new THREE.Group();
-scene.add(beehiveGroup);
+  document.getElementById('stats').textContent = "Running Edge-AI Pipeline...";
 
-const wagonGroup = new THREE.Group();
-wagonGroup.visible = false;
-scene.add(wagonGroup);
+  try {
+    const res = await fetch(`${API}/api/bowl`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
 
-// Simple wagon wheel base (circle at batsman end)
-function createWagonWheelBase() {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(2.8, 3.0, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.3 })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(18.5, 0.1, 0);
-  wagonGroup.add(ring);
+    currentPoints = data.trajectory.map(p => new THREE.Vector3(p.x, p.z, p.y));
+    animProgress = 0;
+    isAnimating = true;
+    ball.visible = true;
 
-  // Radial lines
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const points = [
-      new THREE.Vector3(18.5, 0.11, 0),
-      new THREE.Vector3(18.5 + Math.cos(angle) * 2.9, 0.11, Math.sin(angle) * 2.9)
-    ];
-    const geo = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
-    wagonGroup.add(line);
+    releaseMarker.position.copy(currentPoints[0]);
+    releaseMarker.visible = true;
+    bounceMarker.position.set(data.bounce_x, 0.13, data.bounce_y);
+    bounceMarker.visible = true;
+
+    deliveryCount++;
+    document.getElementById('count').textContent = `Deliveries: ${deliveryCount}`;
+    document.getElementById('stats').textContent =
+      `${data.release_speed_kmh} km/h | ${data.length_category} | ${data.line_category}`;
+    document.getElementById('fusion').textContent =
+      `Fusion: ${(data.fusion_confidence * 100).toFixed(0)}% | Contact: ${data.contact_quality} | ${data.timing}`;
+  } catch (err) {
+    document.getElementById('stats').textContent = "Backend not reachable";
+    console.error(err);
   }
 }
-createWagonWheelBase();
 
-function addToBeehive(traj) {
-  const dot = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffeb3b })
-  );
-  dot.position.set(traj.bounceX, 0.13, traj.bounceY);
-  beehiveGroup.add(dot);
-  deliveries.push(traj);
-  document.getElementById('count').textContent = `Deliveries: ${deliveries.length}`;
-}
+document.getElementById('bowlBtn').onclick = bowl;
 
-function addToWagon(traj) {
-  // Approximate scoring direction based on line + random variation
-  const angle = traj.lineM * 1.8 + (Math.random() - 0.5) * 0.9;
-  const dist = 1.8 + Math.random() * 1.1;
-  const endX = 18.5 + Math.cos(angle) * dist;
-  const endZ = Math.sin(angle) * dist;
+document.getElementById('clearBtn').onclick = async () => {
+  await fetch(`${API}/api/session/clear`, { method: "POST" });
+  deliveryCount = 0;
+  document.getElementById('count').textContent = "Deliveries: 0";
+  document.getElementById('stats').textContent = "Session cleared";
+  document.getElementById('fusion').textContent = "";
+};
 
-  const points = [
-    new THREE.Vector3(18.5, 0.12, 0),
-    new THREE.Vector3(endX, 0.12, endZ)
-  ];
-  const geo = new THREE.BufferGeometry().setFromPoints(points);
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4fc3f7, linewidth: 2 }));
-  wagonGroup.add(line);
-  wagonPoints.push(points);
-}
-
-// ===================== BOWL =====================
-function bowlDelivery() {
-  const speed = +document.getElementById('speed').value;
-  const length = +document.getElementById('length').value;
-  const line = +document.getElementById('line').value;
-  const swing = +document.getElementById('swing').value;
-  const seam = +document.getElementById('seam').value;
-
-  currentTraj = generateTrajectory(speed, length, line, swing, seam);
-  animProgress = 0;
-  isAnimating = true;
-  ball.visible = true;
-
-  // Clear previous trail
-  if (currentTrail) scene.remove(currentTrail);
-
-  releaseMarker.position.copy(currentTraj.points[0]);
-  releaseMarker.visible = true;
-  bounceMarker.position.set(currentTraj.bounceX, 0.13, currentTraj.bounceY);
-  bounceMarker.visible = true;
-
-  document.getElementById('stats').textContent =
-    `${speed} km/h | L ${length.toFixed(1)}m | Swing ${swing}cm | Seam ${seam}cm`;
-}
-
-function clearAll() {
-  isAnimating = false;
-  ball.visible = false;
-  releaseMarker.visible = false;
-  bounceMarker.visible = false;
-  if (currentTrail) scene.remove(currentTrail);
-
-  // Clear beehive
-  while (beehiveGroup.children.length) beehiveGroup.remove(beehiveGroup.children[0]);
-  deliveries = [];
-
-  // Clear wagon
-  while (wagonGroup.children.length > 9) { // keep the base
-    wagonGroup.remove(wagonGroup.children[wagonGroup.children.length - 1]);
-  }
-  wagonPoints = [];
-
-  document.getElementById('count').textContent = 'Deliveries: 0';
-  document.getElementById('stats').textContent = 'Ready';
-}
-
-// ===================== UI =====================
 ['speed', 'length', 'line', 'swing', 'seam'].forEach(id => {
   document.getElementById(id).oninput = e => {
     document.getElementById(id + 'Val').textContent = e.target.value;
   };
 });
 
-document.getElementById('bowlBtn').onclick = bowlDelivery;
-document.getElementById('resetBtn').onclick = clearAll;
-
-document.getElementById('btnBeehive').onclick = () => {
-  viewMode = 'beehive';
-  beehiveGroup.visible = true;
-  wagonGroup.visible = false;
-  document.getElementById('btnBeehive').classList.add('active');
-  document.getElementById('btnWagon').classList.remove('active');
-};
-
-document.getElementById('btnWagon').onclick = () => {
-  viewMode = 'wagon';
-  beehiveGroup.visible = false;
-  wagonGroup.visible = true;
-  document.getElementById('btnWagon').classList.add('active');
-  document.getElementById('btnBeehive').classList.remove('active');
-};
-
-// ===================== ANIMATION LOOP =====================
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
 
-  if (isAnimating && currentTraj) {
-    animProgress += 0.0085;
+  if (isAnimating && currentPoints.length) {
+    animProgress += 0.009;
     if (animProgress >= 1) {
       animProgress = 1;
       isAnimating = false;
-
-      // Add to overlays when finished
-      addToBeehive(currentTraj);
-      addToWagon(currentTraj);
     }
+    const idx = Math.floor(animProgress * (currentPoints.length - 1));
+    ball.position.copy(currentPoints[idx]);
 
-    const idx = Math.floor(animProgress * (currentTraj.points.length - 1));
-    ball.position.copy(currentTraj.points[idx]);
-
-    // Update trail
-    const trailPoints = currentTraj.points.slice(0, idx + 1);
     if (currentTrail) scene.remove(currentTrail);
-    const geo = new THREE.BufferGeometry().setFromPoints(trailPoints);
-    currentTrail = new THREE.Line(geo, trailMat);
+    const geo = new THREE.BufferGeometry().setFromPoints(currentPoints.slice(0, idx + 1));
+    currentTrail = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xff9100 }));
     scene.add(currentTrail);
   }
 
