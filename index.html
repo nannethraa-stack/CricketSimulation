@@ -3,40 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hawk-Eye Cricket Simulator Pro</title>
+  <title>Edge-AI Cricket | Hawk-Eye</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="ui">
-    <h1>🏏 Hawk-Eye Pro</h1>
+    <h1>🏏 Edge-AI Hawk-Eye</h1>
+    <p class="subtitle">Multi-Modal Sensor Fusion v4.0</p>
 
     <div class="controls">
-      <label>Speed (km/h): <span id="speedVal">132</span></label>
+      <label>Speed: <span id="speedVal">132</span> km/h</label>
       <input type="range" id="speed" min="95" max="150" value="132" />
 
-      <label>Length (m): <span id="lengthVal">7.4</span></label>
+      <label>Length: <span id="lengthVal">7.4</span> m</label>
       <input type="range" id="length" min="3.0" max="13.0" step="0.1" value="7.4" />
 
-      <label>Line (m): <span id="lineVal">0.10</span></label>
+      <label>Line: <span id="lineVal">0.10</span> m</label>
       <input type="range" id="line" min="-0.9" max="0.9" step="0.05" value="0.10" />
 
-      <label>Swing (cm): <span id="swingVal">8</span></label>
+      <label>Swing: <span id="swingVal">8</span> cm</label>
       <input type="range" id="swing" min="-25" max="25" value="8" />
 
-      <label>Seam (cm): <span id="seamVal">5</span></label>
+      <label>Seam: <span id="seamVal">5</span> cm</label>
       <input type="range" id="seam" min="-20" max="20" value="5" />
 
-      <button id="bowlBtn">Bowl Delivery</button>
-      <button id="resetBtn">Clear All</button>
-    </div>
+      <label>Shot</label>
+      <select id="shot">
+        <option value="drive">Drive</option>
+        <option value="pull">Pull</option>
+        <option value="cut">Cut</option>
+        <option value="defend">Defend</option>
+        <option value="leave">Leave</option>
+        <option value="sweep">Sweep</option>
+      </select>
 
-    <div class="view-toggles">
-      <button id="btnBeehive" class="active">Beehive</button>
-      <button id="btnWagon">Wagon Wheel</button>
+      <button id="bowlBtn">Bowl Delivery</button>
+      <button id="clearBtn">Clear Session</button>
     </div>
 
     <div id="info">
-      <p id="stats">Ready</p>
+      <p id="stats">Ready – Edge-AI Pipeline Idle</p>
+      <p id="fusion"></p>
       <p id="count">Deliveries: 0</p>
     </div>
   </div>
