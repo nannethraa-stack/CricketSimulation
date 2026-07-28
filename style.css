@@ -1,90 +1,34 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  overflow: hidden;
-  background: #0a160a;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  color: white;
-}
-
-#c {
-  display: block;
-  width: 100vw;
-  height: 100vh;
-}
+body { overflow: hidden; background: #071207; font-family: 'Segoe UI', system-ui, sans-serif; color: white; }
+#c { display: block; width: 100vw; height: 100vh; }
 
 #ui {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  background: rgba(0, 0, 0, 0.82);
-  padding: 18px 20px;
-  border-radius: 14px;
-  width: 270px;
-  backdrop-filter: blur(10px);
-  z-index: 20;
-  border: 1px solid rgba(255,255,255,0.08);
+  position: absolute; top: 14px; left: 14px;
+  background: rgba(0,0,0,0.84); padding: 16px 18px;
+  border-radius: 14px; width: 270px; z-index: 20;
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(12px);
 }
+h1 { font-size: 16px; color: #a5d6a7; }
+.subtitle { font-size: 11px; color: #81c784; margin-bottom: 12px; }
 
-h1 {
-  font-size: 17px;
-  margin-bottom: 14px;
-  color: #a5d6a7;
-}
-
-.controls label {
-  display: block;
-  font-size: 12px;
-  margin: 10px 0 3px;
-  color: #c8e6c9;
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: #66bb6a;
+.controls label { display: block; font-size: 12px; margin: 9px 0 3px; color: #c8e6c9; }
+input[type=range] { width: 100%; accent-color: #66bb6a; }
+select {
+  width: 100%; padding: 6px; border-radius: 6px;
+  border: none; background: #263238; color: white;
 }
 
 button {
-  width: 100%;
-  margin-top: 10px;
-  padding: 9px;
-  border: none;
-  border-radius: 7px;
-  background: #2e7d32;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 13px;
+  width: 100%; margin-top: 10px; padding: 9px; border: none;
+  border-radius: 7px; background: #2e7d32; color: white;
+  font-weight: 600; cursor: pointer; font-size: 13px;
 }
-
 button:hover { background: #388e3c; }
+#clearBtn { background: #455a64; }
+#clearBtn:hover { background: #546e7a; }
 
-#resetBtn { background: #455a64; }
-#resetBtn:hover { background: #546e7a; }
-
-.view-toggles {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.view-toggles button {
-  flex: 1;
-  background: #37474f;
-  margin-top: 0;
-  font-size: 12px;
-}
-
-.view-toggles button.active {
-  background: #1565c0;
-}
-
-#info {
-  margin-top: 14px;
-  font-size: 12px;
-  color: #a5d6a7;
-  line-height: 1.45;
-}
-
+#info { margin-top: 12px; font-size: 12px; line-height: 1.45; }
 #stats { color: #fff59d; }
-#count { margin-top: 4px; opacity: 0.85; }
+#fusion { color: #80cbc4; margin-top: 4px; }
+#count { margin-top: 4px; opacity: 0.8; }
