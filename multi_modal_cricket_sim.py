@@ -1,5 +1,5 @@
 # multi_modal_cricket_sim.py
-# Multi-Modal Edge-AI Cricket Simulator + Graphical Animated Ball Flight
+# Multi-Modal Edge-AI Cricket Simulator – Hawk-Eye Style Version
 # Deploy-ready for Render / Streamlit
 
 import streamlit as st
@@ -10,10 +10,9 @@ import plotly.express as px
 from datetime import datetime
 import random
 from dataclasses import dataclass
-from typing import List, Dict, Tuple
+from typing import Dict, Tuple
 import os
 
-# Production settings for Render
 os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 
@@ -25,7 +24,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# SENSOR & PHYSICS
+# SENSOR & PHYSICS (unchanged)
 # =============================================================================
 
 @dataclass
@@ -83,14 +82,14 @@ def generate_ball_trajectory(
     v0 = release_speed_kmh / 3.6
 
     t_bounce = max(0.38, min(0.95, length_m / max(v0, 1) * 1.05))
-    t1 = np.linspace(0, t_bounce, 50)
+    t1 = np.linspace(0, t_bounce, 60)
     x1 = v0 * t1 * 0.98
     y1 = line_offset_m + swing_m * (t1 / t_bounce)**1.4
     z1 = release_height - 0.5 * 9.81 * t1**2 * 0.92
 
     bounce_x, bounce_y = x1[-1], y1[-1]
     v_post = v0 * bounce_factor
-    t2 = np.linspace(0, 0.55, 35)
+    t2 = np.linspace(0, 0.55, 40)
     x2 = bounce_x + v_post * t2
     y2 = bounce_y + seam_m * (t2 / 0.55)
     z2 = 0.12 + v_post * 0.22 * t2 - 0.5 * 9.81 * t2**2 * 0.75
@@ -169,7 +168,7 @@ def stage_b_cross_validation(d: Dict) -> Dict:
 def stage_c_high_level_ml(d: Dict) -> Dict:
     traj = d["traj"]
     length = traj["length_m"]
-    length_cat = ("Full / Yorker" if length < 4.5 else
+    length_cat = ("Yorker / Full" if length < 4.5 else
                   "Good Length" if length < 7.5 else
                   "Short of Length" if length < 10 else "Bouncer / Short")
     line = traj["line_m"]
@@ -205,251 +204,178 @@ def run_fusion_pipeline(d: Dict) -> Dict:
 
 
 # =============================================================================
-# GRAPHICAL ANIMATED REPLAYS (Bowler + Batsman)
+# HAWK-EYE STYLE VISUALIZATIONS
 # =============================================================================
 
-def create_side_on_animation(traj: Dict, speed_multiplier: float = 1.0):
-    """Side-on view with simple bowler and batsman figures."""
-    t = traj["t"]
-    x = traj["x"]
-    z = traj["z"]
-    n_frames = len(t)
-
-    step = max(1, n_frames // 70)
-    frames_idx = list(range(0, n_frames, step))
-    if frames_idx[-1] != n_frames - 1:
-        frames_idx.append(n_frames - 1)
-
+def create_hawkeye_side_view(traj: Dict):
+    """Clean Hawk-Eye style side-on trajectory."""
     fig = go.Figure()
 
     # Pitch surface
     fig.add_trace(go.Scatter(
         x=[0, 20.5], y=[0, 0],
-        mode="lines", line=dict(color="#2e7d32", width=14),
-        name="Pitch", showlegend=False
+        mode="lines", line=dict(color="#1b5e20", width=16),
+        showlegend=False
     ))
 
-    # Popping crease
+    # Length zones (background bands)
+    zones = [
+        (0, 4.5, "rgba(255, 235, 59, 0.15)", "Yorker / Full"),
+        (4.5, 7.5, "rgba(76, 175, 80, 0.15)", "Good Length"),
+        (7.5, 10.5, "rgba(255, 152, 0, 0.15)", "Short of Length"),
+        (10.5, 20.5, "rgba(244, 67, 54, 0.12)", "Bouncer Zone")
+    ]
+    for x0, x1, color, _ in zones:
+        fig.add_shape(type="rect", x0=x0, y0=0, x1=x1, y1=2.4,
+                      fillcolor=color, line_width=0, layer="below")
+
+    # Ball trajectory
     fig.add_trace(go.Scatter(
-        x=[17.68, 17.68], y=[-0.05, 0.15],
-        mode="lines", line=dict(color="white", width=2, dash="dot"),
-        showlegend=False
+        x=traj["x"], y=traj["z"],
+        mode="lines",
+        line=dict(color="#ff1744", width=4),
+        name="Ball Path"
+    ))
+
+    # Bounce point
+    fig.add_trace(go.Scatter(
+        x=[traj["bounce_x"]], y=[0.12],
+        mode="markers",
+        marker=dict(size=14, color="#ffeb3b", symbol="diamond",
+                    line=dict(width=2, color="black")),
+        name="Bounce"
+    ))
+
+    # Release point
+    fig.add_trace(go.Scatter(
+        x=[traj["x"][0]], y=[traj["z"][0]],
+        mode="markers",
+        marker=dict(size=12, color="#2979ff", symbol="circle"),
+        name="Release"
     ))
 
     # Stumps
     fig.add_trace(go.Scatter(
         x=[20.12, 20.12], y=[0, 0.71],
-        mode="lines", line=dict(color="#ffeb3b", width=7),
-        name="Stumps", showlegend=False
-    ))
-    # Bails
-    fig.add_trace(go.Scatter(
-        x=[20.05, 20.19], y=[0.71, 0.71],
-        mode="lines", line=dict(color="#ffeb3b", width=4),
+        mode="lines", line=dict(color="#ffeb3b", width=8),
         showlegend=False
     ))
-
-    # ----- Batsman (blue stick figure) -----
-    fig.add_trace(go.Scatter(
-        x=[18.6, 18.6], y=[0.95, 1.55],
-        mode="lines", line=dict(color="#1565c0", width=6),
-        showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=[18.6], y=[1.68],
-        mode="markers", marker=dict(size=16, color="#1565c0"),
-        showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=[18.45, 18.6, 18.75], y=[0.05, 0.95, 0.05],
-        mode="lines", line=dict(color="#1565c0", width=5),
-        showlegend=False
-    ))
-    # Bat
-    fig.add_trace(go.Scatter(
-        x=[18.75, 19.15], y=[1.15, 0.55],
-        mode="lines", line=dict(color="#5d4037", width=6),
-        showlegend=False
-    ))
-
-    # ----- Bowler (red stick figure) -----
-    fig.add_trace(go.Scatter(
-        x=[1.2, 1.2], y=[0.95, 1.55],
-        mode="lines", line=dict(color="#c62828", width=6),
-        showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=[1.2], y=[1.68],
-        mode="markers", marker=dict(size=16, color="#c62828"),
-        showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=[1.05, 1.2, 1.35], y=[0.05, 0.95, 0.05],
-        mode="lines", line=dict(color="#c62828", width=5),
-        showlegend=False
-    ))
-    # Bowling arm
-    fig.add_trace(go.Scatter(
-        x=[1.2, 1.6], y=[1.45, 1.85],
-        mode="lines", line=dict(color="#c62828", width=5),
-        showlegend=False
-    ))
-
-    # ----- Ball + Trail + Shadow (animated) -----
-    fig.add_trace(go.Scatter(
-        x=[x[0]], y=[z[0]],
-        mode="markers",
-        marker=dict(size=13, color="#ff1744", line=dict(width=2, color="white")),
-        name="Ball"
-    ))
-    fig.add_trace(go.Scatter(
-        x=[], y=[],
-        mode="lines",
-        line=dict(width=3, color="#ff9100"),
-        name="Trail", showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=[x[0]], y=[0.02],
-        mode="markers",
-        marker=dict(size=9, color="rgba(0,0,0,0.35)"),
-        showlegend=False
-    ))
-
-    frames = []
-    for i in frames_idx:
-        frames.append(go.Frame(
-            data=[
-                go.Scatter(x=[x[i]], y=[z[i]]),          # ball
-                go.Scatter(x=x[:i+1], y=z[:i+1]),        # trail
-                go.Scatter(x=[x[i]], y=[0.02])           # shadow
-            ],
-            name=str(i),
-            traces=[11, 12, 13]
-        ))
-    fig.frames = frames
 
     fig.update_layout(
-        title="Side-On View · Real Practice Style (Bowler → Ball → Batsman)",
-        xaxis=dict(range=[-0.8, 21.5], title="Length (m)", showgrid=False),
-        yaxis=dict(range=[-0.15, 2.5], title="Height (m)", scaleanchor="x", scaleratio=1, showgrid=False),
+        title="Hawk-Eye Side View · Ball Trajectory + Length Zones",
+        xaxis=dict(range=[-0.5, 21], title="Length (m)", showgrid=False),
+        yaxis=dict(range=[-0.1, 2.5], title="Height (m)", scaleanchor="x", scaleratio=1, showgrid=False),
         height=480,
-        plot_bgcolor="#e8f5e9",
+        plot_bgcolor="#f5f5f5",
         paper_bgcolor="#fafafa",
-        updatemenus=[{
-            "type": "buttons",
-            "buttons": [
-                {
-                    "label": "▶ Play",
-                    "method": "animate",
-                    "args": [None, {
-                        "frame": {"duration": int(32 / speed_multiplier), "redraw": True},
-                        "fromcurrent": True,
-                        "transition": {"duration": 0}
-                    }]
-                },
-                {
-                    "label": "⏸ Pause",
-                    "method": "animate",
-                    "args": [[None], {"frame": {"duration": 0}, "mode": "immediate"}]
-                }
-            ],
-            "direction": "left",
-            "x": 0.01, "y": 1.12
-        }],
-        sliders=[{
-            "steps": [
-                {"args": [[f.name], {"frame": {"duration": 0}, "mode": "immediate"}],
-                 "label": f"{traj['t'][int(f.name)]*1000:.0f}ms",
-                 "method": "animate"}
-                for f in frames
-            ],
-            "x": 0.1, "len": 0.8, "y": -0.07
-        }],
-        margin=dict(t=60, b=60)
+        legend=dict(orientation="h", y=1.12),
+        margin=dict(t=80, b=40)
     )
     return fig
 
 
-def create_topdown_animation(traj: Dict, speed_multiplier: float = 1.0):
-    """Top-down pitch map with clearer markings."""
-    t = traj["t"]
-    x = traj["x"]
-    y = traj["y"]
-    n_frames = len(t)
-
-    step = max(1, n_frames // 60)
-    frames_idx = list(range(0, n_frames, step))
-    if frames_idx[-1] != n_frames - 1:
-        frames_idx.append(n_frames - 1)
-
+def create_hawkeye_pitch_map(traj: Dict):
+    """Classic Hawk-Eye top-down pitch map with zones."""
     fig = go.Figure()
 
-    # Pitch
-    fig.add_shape(type="rect", x0=0, y0=-1.5, x1=20.12, y1=1.5,
-                  line=dict(color="white", width=2), fillcolor="rgba(46,125,50,0.45)")
+    # Pitch background
+    fig.add_shape(type="rect", x0=0, y0=-1.6, x1=20.12, y1=1.6,
+                  fillcolor="rgba(46, 125, 50, 0.55)", line=dict(color="white", width=2))
+
+    # Length zone lines
+    for x in [4.5, 7.5, 10.5]:
+        fig.add_shape(type="line", x0=x, y0=-1.6, x1=x, y1=1.6,
+                      line=dict(color="rgba(255,255,255,0.5)", width=1, dash="dot"))
 
     # Creases
-    fig.add_shape(type="line", x0=1.22, y0=-1.5, x1=1.22, y1=1.5,
+    fig.add_shape(type="line", x0=1.22, y0=-1.6, x1=1.22, y1=1.6,
                   line=dict(color="white", width=1, dash="dot"))
-    fig.add_shape(type="line", x0=17.68, y0=-1.5, x1=17.68, y1=1.5,
+    fig.add_shape(type="line", x0=17.68, y0=-1.6, x1=17.68, y1=1.6,
                   line=dict(color="white", width=1, dash="dot"))
 
     # Stumps
-    fig.add_shape(type="line", x0=20.12, y0=-0.12, x1=20.12, y1=0.12,
-                  line=dict(color="#ffeb3b", width=6))
+    fig.add_shape(type="line", x0=20.12, y0=-0.115, x1=20.12, y1=0.115,
+                  line=dict(color="#ffeb3b", width=7))
 
-    # Batsman position
+    # Full trajectory (faded)
     fig.add_trace(go.Scatter(
-        x=[18.5], y=[0],
-        mode="markers",
-        marker=dict(size=18, color="#1565c0", symbol="circle"),
-        name="Batsman"
-    ))
-
-    # Ball + trail
-    fig.add_trace(go.Scatter(
-        x=[x[0]], y=[y[0]],
-        mode="markers",
-        marker=dict(size=12, color="#ff1744", line=dict(width=2, color="white")),
-        name="Ball"
-    ))
-    fig.add_trace(go.Scatter(
-        x=[], y=[],
+        x=traj["x"], y=traj["y"],
         mode="lines",
-        line=dict(width=3, color="#ff9100"),
+        line=dict(color="rgba(255, 23, 68, 0.35)", width=2),
         showlegend=False
     ))
 
-    frames = []
-    for i in frames_idx:
-        frames.append(go.Frame(
-            data=[
-                go.Scatter(x=[x[i]], y=[y[i]]),
-                go.Scatter(x=x[:i+1], y=y[:i+1])
-            ],
-            name=str(i),
-            traces=[1, 2]
-        ))
-    fig.frames = frames
+    # Bounce point (main marker)
+    fig.add_trace(go.Scatter(
+        x=[traj["bounce_x"]], y=[traj["bounce_y"]],
+        mode="markers",
+        marker=dict(size=16, color="#ffeb3b", symbol="diamond",
+                    line=dict(width=2, color="black")),
+        name=f"Bounce ({traj['length_m']:.1f}m)"
+    ))
+
+    # Release point
+    fig.add_trace(go.Scatter(
+        x=[traj["x"][0]], y=[traj["y"][0]],
+        mode="markers",
+        marker=dict(size=11, color="#2979ff"),
+        name="Release"
+    ))
 
     fig.update_layout(
-        title="Top-Down Pitch Map · Ball Path",
-        xaxis=dict(range=[-1, 21.5], title="Length (m)", showgrid=False),
-        yaxis=dict(range=[-1.7, 1.7], title="Line (m)", scaleanchor="x", scaleratio=1, showgrid=False),
-        height=420,
-        plot_bgcolor="rgba(20,70,20,0.3)",
-        updatemenus=[{
-            "type": "buttons",
-            "buttons": [
-                {"label": "▶ Play", "method": "animate",
-                 "args": [None, {"frame": {"duration": int(32 / speed_multiplier), "redraw": True},
-                                 "fromcurrent": True, "transition": {"duration": 0}}]},
-                {"label": "⏸ Pause", "method": "animate",
-                 "args": [[None], {"frame": {"duration": 0}, "mode": "immediate"}]}
-            ],
-            "x": 0.01, "y": 1.12
-        }],
-        margin=dict(t=50, b=40)
+        title="Hawk-Eye Pitch Map · Line & Length",
+        xaxis=dict(range=[-0.8, 21], title="Length (m)", showgrid=False),
+        yaxis=dict(range=[-1.8, 1.8], title="Line (m)  (− = Off side)",
+                   scaleanchor="x", scaleratio=1, showgrid=False),
+        height=480,
+        plot_bgcolor="rgba(27, 94, 32, 0.3)",
+        paper_bgcolor="#fafafa",
+        legend=dict(orientation="h", y=1.12),
+        margin=dict(t=80, b=40)
+    )
+    return fig
+
+
+def create_hawkeye_3d(traj: Dict):
+    """3D trajectory view."""
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter3d(
+        x=traj["x"], y=traj["y"], z=traj["z"],
+        mode="lines",
+        line=dict(color="#ff1744", width=6),
+        name="Ball Path"
+    ))
+
+    # Bounce marker
+    fig.add_trace(go.Scatter3d(
+        x=[traj["bounce_x"]], y=[traj["bounce_y"]], z=[0.12],
+        mode="markers",
+        marker=dict(size=6, color="#ffeb3b", symbol="diamond"),
+        name="Bounce"
+    ))
+
+    # Simple pitch plane
+    fig.add_trace(go.Mesh3d(
+        x=[0, 20.5, 20.5, 0],
+        y=[-1.5, -1.5, 1.5, 1.5],
+        z=[0, 0, 0, 0],
+        color="green", opacity=0.35,
+        name="Pitch", showlegend=False
+    ))
+
+    fig.update_layout(
+        title="3D Ball Trajectory",
+        scene=dict(
+            xaxis_title="Length (m)",
+            yaxis_title="Line (m)",
+            zaxis_title="Height (m)",
+            aspectmode="manual",
+            aspectratio=dict(x=2.2, y=1, z=0.45),
+            camera=dict(eye=dict(x=1.4, y=-1.6, z=0.7))
+        ),
+        height=500,
+        margin=dict(t=50)
     )
     return fig
 
@@ -459,7 +385,7 @@ def create_topdown_animation(traj: Dict, speed_multiplier: float = 1.0):
 # =============================================================================
 
 st.title("🏏 Multi-Modal Edge-AI Cricket Simulator")
-st.caption("Technical Spec v4.0 · Graphical Animated Ball Flight · Edge-AI Fusion · Zero Cloud")
+st.caption("Hawk-Eye Style Tracking · Technical Spec v4.0 · Edge-AI Fusion · Zero Cloud")
 
 with st.sidebar:
     st.header("Session Controls")
@@ -506,7 +432,6 @@ if st.session_state.run_sim:
 events = st.session_state.session_events
 
 if events:
-    # KPI row
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Avg Speed", f"{np.mean([e['traj']['release_speed_kmh'] for e in events]):.1f} km/h")
     valid = sum(e["valid_event"] for e in events)
@@ -515,30 +440,28 @@ if events:
     c4.metric("Avg Fusion Conf.", f"{np.mean([e['analytics']['fusion_confidence'] for e in events])*100:.0f}%")
     c5.metric("Edge Latency", "< 18 ms")
 
-    tab_anim, tab_bowl, tab_bat, tab_pipe = st.tabs([
-        "🎬 Animated Ball Flight", "Bowling Analytics", "Batting Analytics", "Fusion Pipeline"
+    tab_hawk, tab_bowl, tab_bat, tab_pipe = st.tabs([
+        "🎯 Hawk-Eye Tracking", "Bowling Analytics", "Batting Analytics", "Fusion Pipeline"
     ])
 
-    with tab_anim:
-        st.subheader("Realistic Ball Flight Replay")
-        col_sel, col_spd = st.columns([2, 1])
-        with col_sel:
-            ball_idx = st.selectbox(
-                "Select delivery to replay",
-                options=list(range(len(events))),
-                format_func=lambda i: f"Ball {i+1} — {events[i]['traj']['release_speed_kmh']:.0f} km/h — {events[i]['analytics']['delivery']['length_category']}"
-            )
-        with col_spd:
-            speed_mult = st.select_slider("Playback speed", options=[0.5, 1.0, 1.5, 2.0, 3.0, 4.0], value=1.0)
-
+    with tab_hawk:
+        st.subheader("Hawk-Eye Style Ball Tracking")
+        ball_idx = st.selectbox(
+            "Select delivery",
+            options=list(range(len(events))),
+            format_func=lambda i: f"Ball {i+1}  •  {events[i]['traj']['release_speed_kmh']:.0f} km/h  •  {events[i]['analytics']['delivery']['length_category']}"
+        )
         traj = events[ball_idx]["traj"]
-        a1, a2 = st.columns(2)
-        with a1:
-            st.plotly_chart(create_side_on_animation(traj, speed_mult), use_container_width=True)
-        with a2:
-            st.plotly_chart(create_topdown_animation(traj, speed_mult), use_container_width=True)
 
-        st.caption("Red figure = Bowler · Blue figure = Batsman · Red ball + orange trail · Use ▶ Play")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.plotly_chart(create_hawkeye_side_view(traj), use_container_width=True)
+        with col2:
+            st.plotly_chart(create_hawkeye_pitch_map(traj), use_container_width=True)
+
+        st.plotly_chart(create_hawkeye_3d(traj), use_container_width=True)
+
+        st.caption("Yellow diamond = Bounce point · Blue = Release · Red line = Tracked path · Coloured bands = Length zones")
 
     with tab_bowl:
         rows = []
@@ -583,7 +506,7 @@ if events:
         e = events[0]
         st.markdown(f"""
         **Stage A – Time Synchronization**  
-        Master Piezo trigger used · ±25 ms window around impact
+        Master Piezo trigger · ±25 ms window
 
         **Stage B – Cross-Validation**  
         Valid event: `{e['valid_event']}` · False positives rejected: `{e['false_positive_rejected']}`
@@ -599,4 +522,4 @@ else:
     st.info("Set the session parameters in the sidebar and click **Run Full Fusion Pipeline** to generate deliveries.")
 
 st.markdown("---")
-st.caption("Multi-Modal Edge-AI Sensor Fusion Simulator · Spec v4.0 · Graphical Option")
+st.caption("Multi-Modal Edge-AI Sensor Fusion Simulator · Hawk-Eye Style · Spec v4.0")
