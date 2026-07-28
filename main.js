@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // CHANGE THIS after deploying the backend
-const API = "http://localhost:8000";
+const API = https://cricketsimulation-2.onrender.com;
+
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
